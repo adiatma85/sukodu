@@ -1,0 +1,14 @@
+[package]
+name = "sudoku"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "solver"
+path = "src/bin/solver.rs"
+
+[[bin]]
+name = "generator"
+path = "src/bin/generator.rs"
+
+[dependencies]
