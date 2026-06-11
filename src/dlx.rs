@@ -254,4 +254,52 @@ impl ExactCover {
         }
         self.heap.restore(col_idx);
     }
+
+    /// Counts the number of solutions up to `limit`, aborting if `max_steps` operations are performed.
+    /// Returns `(solutions_count, completed)`.
+    pub fn count_solutions_limited(&mut self, limit: usize, max_steps: usize) -> (usize, bool) {
+        let mut count = 0;
+        let mut steps = 0;
+        let completed = self.solve_count_limited(&mut count, limit, &mut steps, max_steps);
+        (count, completed)
+    }
+
+    fn solve_count_limited(&mut self, count: &mut usize, limit: usize, steps: &mut usize, max_steps: usize) -> bool {
+        *steps += 1;
+        if *steps > max_steps {
+            return false;
+        }
+        if *count >= limit {
+            return true;
+        }
+        if self.heap.is_empty() {
+            *count += 1;
+            return true;
+        }
+        let col_idx = self.heap.take_min();
+        let n = self.cols[col_idx].size;
+        if n == 0 {
+            self.heap.restore(col_idx);
+            return true;
+        }
+        let head_idx = self.cols[col_idx].head;
+        let mut cell_idx = self.cells[head_idx].next;
+        while cell_idx != head_idx {
+            let line_idx = self.cells[cell_idx].line;
+            let stacks = self.line_select(line_idx);
+            let ok = self.solve_count_limited(count, limit, steps, max_steps);
+            self.line_unselect(line_idx, &stacks);
+            if !ok {
+                self.heap.restore(col_idx);
+                return false;
+            }
+            if *count >= limit {
+                self.heap.restore(col_idx);
+                return true;
+            }
+            cell_idx = self.cells[cell_idx].next;
+        }
+        self.heap.restore(col_idx);
+        true
+    }
 }

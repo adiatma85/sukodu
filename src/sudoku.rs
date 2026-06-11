@@ -58,8 +58,8 @@ fn shuffle<T>(slice: &mut [T], rng: &mut SimpleRng) {
     }
 }
 
-/// Generates a new Sudoku puzzle of the specified size and difficulty.
-pub fn generate(size: usize, difficulty: &str) {
+/// Generates a new Sudoku puzzle of the specified size and difficulty, returning it as a flat vector.
+pub fn generate_board(size: usize, difficulty: &str) -> Vec<usize> {
     let total_cells = size * size;
     let target_clues = match difficulty {
         "easy" => (total_cells * 45) / 100,
@@ -89,8 +89,9 @@ pub fn generate(size: usize, difficulty: &str) {
     }
 
     if !problem.solve() {
-        eprintln!("Failed to generate base board");
-        return;
+        // Fallback to a non-randomized solved board if randomizing fails (should be rare/impossible for first row)
+        let mut problem = ExactCover::new(num_cols, lines_cols.clone());
+        problem.solve();
     }
 
     let mut solved_board = vec![0; total_cells];
@@ -106,27 +107,63 @@ pub fn generate(size: usize, difficulty: &str) {
         }
     }
 
-    // 2. Remove clues while maintaining unique solution
+    // 2. Remove clues symmetrically while maintaining unique solution
     let mut puzzle = solved_board.clone();
-    let mut cell_indices: Vec<usize> = (0..total_cells).collect();
-    shuffle(&mut cell_indices, &mut rng);
+    
+    // Group cell indices into rotationally symmetric pairs/groups
+    let mut pairs = Vec::new();
+    let mut visited = vec![false; total_cells];
+    for idx in 0..total_cells {
+        if visited[idx] {
+            continue;
+        }
+        let r = idx / size;
+        let c = idx % size;
+        let sym_r = size - 1 - r;
+        let sym_c = size - 1 - c;
+        let sym_idx = sym_r * size + sym_c;
+        
+        if idx == sym_idx {
+            pairs.push(vec![idx]);
+        } else {
+            pairs.push(vec![idx, sym_idx]);
+        }
+        visited[idx] = true;
+        visited[sym_idx] = true;
+    }
+    
+    shuffle(&mut pairs, &mut rng);
+
+    // Step limit for uniqueness checks to avoid long hangs on large boards
+    let max_steps = if size <= 9 { 50_000 } else { 20_000 };
 
     let mut current_clues = total_cells;
-    for &idx in &cell_indices {
-        if current_clues <= target_clues {
-            break;
+    for pair in pairs {
+        if current_clues - pair.len() < target_clues {
+            continue;
         }
 
-        let temp = puzzle[idx];
-        puzzle[idx] = 0;
+        let mut temps = Vec::new();
+        for &idx in &pair {
+            temps.push(puzzle[idx]);
+            puzzle[idx] = 0;
+        }
 
-        if has_unique_solution(&puzzle, size, &lines_cols) {
-            current_clues -= 1;
+        if has_unique_solution_limited(&puzzle, size, &lines_cols, max_steps) {
+            current_clues -= pair.len();
         } else {
-            puzzle[idx] = temp;
+            for (i, &idx) in pair.iter().enumerate() {
+                puzzle[idx] = temps[i];
+            }
         }
     }
 
+    puzzle
+}
+
+/// Generates a new Sudoku puzzle of the specified size and difficulty and prints it to stdout.
+pub fn generate(size: usize, difficulty: &str) {
+    let puzzle = generate_board(size, difficulty);
     // Print puzzle to stdout
     for i in 0..size {
         for j in 0..size {
@@ -139,7 +176,41 @@ pub fn generate(size: usize, difficulty: &str) {
     }
 }
 
-fn has_unique_solution(board: &[usize], size: usize, lines_cols: &Vec<Vec<usize>>) -> bool {
+/// Solves a Sudoku puzzle represented as a flat vector of size `size * size`.
+/// Returns `Some(solved_board)` if a solution is found, or `None` otherwise.
+pub fn solve_board(board: &[usize], size: usize) -> Option<Vec<usize>> {
+    let num_cols = size * size * 4;
+    let lines_cols = make_lines_cols(size);
+    let mut problem = ExactCover::new(num_cols, lines_cols);
+    for (idx, &val) in board.iter().enumerate() {
+        if val > 0 {
+            if val > size {
+                return None;
+            }
+            let line_idx = idx * size + val - 1;
+            problem.select(line_idx);
+        }
+    }
+    if problem.solve() {
+        let mut solved = vec![0; size * size];
+        for i in 0..size {
+            for j in 0..size {
+                for k in 0..size {
+                    let line_idx = (i * size + j) * size + k;
+                    if problem.is_selected(line_idx) {
+                        solved[i * size + j] = k + 1;
+                        break;
+                    }
+                }
+            }
+        }
+        Some(solved)
+    } else {
+        None
+    }
+}
+
+pub fn has_unique_solution_limited(board: &[usize], size: usize, lines_cols: &Vec<Vec<usize>>, max_steps: usize) -> bool {
     let num_cols = size * size * 4;
     let mut problem = ExactCover::new(num_cols, lines_cols.clone());
     for (idx, &val) in board.iter().enumerate() {
@@ -148,7 +219,12 @@ fn has_unique_solution(board: &[usize], size: usize, lines_cols: &Vec<Vec<usize>
             problem.select(line_idx);
         }
     }
-    problem.count_solutions(2) == 1
+    let (count, completed) = problem.count_solutions_limited(2, max_steps);
+    completed && count == 1
+}
+
+pub fn has_unique_solution(board: &[usize], size: usize, lines_cols: &Vec<Vec<usize>>) -> bool {
+    has_unique_solution_limited(board, size, lines_cols, 100_000)
 }
 
 /// Parses the Sudoku puzzle from standard input and selects the pre-filled cells.
