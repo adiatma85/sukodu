@@ -123,7 +123,7 @@ fn clue_accuracy(recognized: &[usize], truth: &[usize]) -> (usize, usize, usize)
 
 #[test]
 fn test_scan_9x9_accuracy() {
-    let path = "tests/sudoku_synthetic_9x9.png";
+    let path = "tests/images/sudoku_synthetic_9x9.png";
     generate_synthetic_image(path, 9, &PUZZLE_9X9).unwrap();
 
     let recognized = match scan_image(path, 9) {
@@ -151,7 +151,7 @@ fn test_scan_9x9_accuracy() {
 #[test]
 fn test_scan_and_solve_9x9_end_to_end() {
     // This is the core "see the image and solve it" check.
-    let path = "tests/sudoku_synthetic_9x9.png";
+    let path = "tests/images/sudoku_synthetic_9x9.png";
     generate_synthetic_image(path, 9, &PUZZLE_9X9).unwrap();
 
     let recognized = match scan_image(path, 9) {
@@ -207,7 +207,7 @@ fn test_scan_and_solve_16x16_end_to_end() {
         "test puzzle must have a unique solution"
     );
 
-    let path = "tests/sudoku_synthetic_16x16.png";
+    let path = "tests/images/sudoku_synthetic_16x16.png";
     generate_synthetic_image(path, size, &puzzle).unwrap();
 
     let recognized = match scan_image(path, size) {
@@ -251,7 +251,7 @@ fn test_scan_and_solve_16x16_end_to_end() {
 fn test_real_world_9x9_if_present() {
     // Optional: only runs if a real photo is supplied. Asserts the grid is located and sized
     // correctly; recognition accuracy on arbitrary photos is not asserted.
-    let path = "tests/sudoku_9x9.png";
+    let path = "tests/images/sudoku_9x9.png";
     if !std::path::Path::new(path).exists() {
         println!("Skipping real-world 9x9 test: {} not found", path);
         return;
