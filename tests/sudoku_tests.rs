@@ -1,4 +1,4 @@
-use sudoku::{generate_board, solve_board, make_lines_cols, has_unique_solution};
+use sukodu::{format_board, generate_board, has_unique_solution, make_lines_cols, parse_grid, solve_board};
 
 fn run_scenario(size: usize, difficulty: &str) {
     let board = generate_board(size, difficulty);
@@ -21,6 +21,69 @@ fn run_scenario(size: usize, difficulty: &str) {
     for i in 0..(size * size) {
         if board[i] > 0 {
             assert_eq!(solution[i], board[i]);
+        }
+    }
+}
+
+// ---- parse_grid / format_board (text I/O) ----
+
+#[test]
+fn test_parse_grid_valid() {
+    let input = "0 6 0 0 5 0 0 0 0\n\
+                 0 0 0 0 0 0 8 4 0\n\
+                 0 5 3 0 0 0 0 0 0\n\
+                 1 0 0 9 0 0 0 0 6\n\
+                 0 0 6 3 0 8 0 0 7\n\
+                 8 0 0 6 0 0 0 0 4\n\
+                 0 7 1 0 0 0 0 0 0\n\
+                 0 0 0 0 0 0 3 9 0\n\
+                 0 8 0 0 4 0 0 0 0\n";
+    let board = parse_grid(input, 9).expect("valid 9x9 input should parse");
+    assert_eq!(board.len(), 81);
+    assert_eq!(board[1], 6);
+    assert_eq!(board[0], 0);
+}
+
+#[test]
+fn test_parse_grid_wrong_count() {
+    let err = parse_grid("1 2 3", 9).unwrap_err();
+    assert!(err.contains("expected exactly 81"), "got: {}", err);
+}
+
+#[test]
+fn test_parse_grid_out_of_range() {
+    // value 10 is invalid for a 9x9 grid
+    let mut input = "10 ".repeat(81);
+    input.pop();
+    let err = parse_grid(&input, 9).unwrap_err();
+    assert!(err.contains("out of range"), "got: {}", err);
+}
+
+#[test]
+fn test_parse_grid_non_numeric() {
+    let input = "x ".repeat(81);
+    let err = parse_grid(&input, 9).unwrap_err();
+    assert!(err.contains("invalid token"), "got: {}", err);
+}
+
+#[test]
+fn test_format_board_round_trips_through_parse_grid() {
+    let board = generate_board(9, "easy");
+    let text = format_board(&board, 9);
+    let reparsed = parse_grid(&text, 9).expect("formatted board should re-parse");
+    assert_eq!(reparsed, board);
+}
+
+#[test]
+fn test_solve_from_parsed_grid() {
+    // End-to-end at the library level: generate -> format -> parse -> solve.
+    let board = generate_board(9, "easy");
+    let text = format_board(&board, 9);
+    let parsed = parse_grid(&text, 9).unwrap();
+    let solved = solve_board(&parsed, 9).expect("parsed puzzle should solve");
+    for i in 0..81 {
+        if board[i] > 0 {
+            assert_eq!(solved[i], board[i]);
         }
     }
 }
