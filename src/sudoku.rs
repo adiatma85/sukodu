@@ -274,3 +274,54 @@ pub fn print(problem: &ExactCover, size: usize) {
         println!();
     }
 }
+
+/// Parses and validates a Sudoku grid from a whitespace-separated string.
+///
+/// Every token must be an integer in `0..=size` (`0` marks an empty cell), and the total
+/// number of tokens must equal `size * size`. Returns a flat row-major board on success, or
+/// a descriptive error describing the first format violation (non-numeric token,
+/// out-of-range value, or wrong number of cells).
+pub fn parse_grid(input: &str, size: usize) -> Result<Vec<usize>, String> {
+    let expected = size * size;
+    let mut board = Vec::with_capacity(expected);
+
+    for token in input.split_whitespace() {
+        let value: usize = token.parse().map_err(|_| {
+            format!("invalid token '{}': expected an integer in 0..={}", token, size)
+        })?;
+        if value > size {
+            return Err(format!(
+                "value {} is out of range: expected 0..={} (0 = empty cell)",
+                value, size
+            ));
+        }
+        board.push(value);
+    }
+
+    if board.len() != expected {
+        return Err(format!(
+            "expected exactly {} numbers for a {}x{} grid, found {}",
+            expected, size, size, board.len()
+        ));
+    }
+
+    Ok(board)
+}
+
+/// Formats a flat row-major board as whitespace-separated numeric rows.
+///
+/// Output round-trips through [`parse_grid`] (same format as the text input), so a solved
+/// board written to a file can be fed straight back into the solver.
+pub fn format_board(board: &[usize], size: usize) -> String {
+    let mut out = String::new();
+    for i in 0..size {
+        for j in 0..size {
+            if j > 0 {
+                out.push(' ');
+            }
+            out.push_str(&board[i * size + j].to_string());
+        }
+        out.push('\n');
+    }
+    out
+}

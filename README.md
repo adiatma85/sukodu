@@ -1,23 +1,25 @@
 # Sudoku Solver & Generator
 
-A Sudoku solver and puzzle generator written in Rust, built on **Algorithm X (Dancing Links)** for exact cover.
-
-Both binaries share a single library crate (`sudoku-core`) with the DLX, heap, and Sudoku helpers.
+A Sudoku solver and puzzle generator written in Rust, built on **Algorithm X (Dancing Links)** for exact cover. It ships as a single `sukodu` binary with `generate` and `solve` subcommands, including the ability to **solve a puzzle from a photo** via Tesseract OCR.
 
 ## Project Structure
 
 ```
-sudoku/
+sukodu/
 ├── Cargo.toml
 ├── README.md
 ├── src/
 │   ├── lib.rs           # Library entry — re-exports shared modules
 │   ├── dlx.rs           # Exact cover (Dancing Links + Algorithm X)
 │   ├── heap.rs          # Binary min-heap for column selection
-│   ├── sudoku.rs        # Sudoku helpers + puzzle generation
-│   ├── bin/
-│   │   ├── solver.rs    # Solver binary
-│   │   └── generator.rs # Generator binary
+│   ├── sudoku.rs        # Sudoku helpers, generation, parse_grid/format_board
+│   ├── vision.rs        # Image pipeline: grid detection, warp, Tesseract OCR
+│   └── bin/
+│       └── main.rs      # CLI: `sukodu generate` / `sukodu solve`
+└── tests/
+    ├── sudoku_tests.rs  # solve / generate / parse_grid
+    ├── cli_tests.rs     # binary file-based solve
+    └── vision_tests.rs  # image scan + solve (needs Tesseract)
 ```
 
 ## Usage
@@ -28,34 +30,47 @@ sudoku/
 cargo build --release
 ```
 
-### Solver
+The binary is then at `./target/release/sukodu` (examples below use `cargo run --` for convenience).
 
-Reads a Sudoku grid from standard input and prints the solution.
+### Generate
+
+Generate a new puzzle and print it to standard output:
 
 ```bash
-./target/release/solver < puzzle.txt
+sukodu generate                 # 9x9, medium (defaults)
+sukodu generate 9 easy
+sukodu generate 16 medium
+sukodu generate 25 hard
 ```
 
-Optional size argument (default 9):
+Size must be a non-zero perfect square (4, 9, 16, 25, …); difficulty is `easy`, `medium`, or `hard`.
+
+### Solve from stdin
+
+Read a puzzle from standard input and print the solution:
 
 ```bash
-./target/release/solver 16 < puzzle_16.txt
+sukodu solve < puzzle.txt        # 9x9 (default)
+sukodu solve 16 < puzzle_16.txt  # optional positional size
 ```
 
-### Generator
+### Solve from a file (`--input-file` / `--output-file`)
 
-Generates a new Sudoku puzzle and prints it to standard output.
+Read a puzzle from a text file, validate its format, solve it, and write the solution to a file. The `--size`, `--input-file`, and `--output-file` flags are all required:
 
 ```bash
-./target/release/generator 9 easy
-./target/release/generator 16 medium
-./target/release/generator 25 hard
+sukodu solve --size 9 --input-file ./puzzle.txt --output-file ./solution.txt
 ```
 
-The generator can also solve puzzles (same interface as the solver):
+The input is validated before solving — a clear error is printed (and the process exits non-zero) if the file has the wrong number of cells, a non-numeric token, or an out-of-range value. The solution file uses the same numeric format as the input, so it round-trips back through the solver.
+
+### Solve from an image
+
+Solve a puzzle from a photo or screenshot (see [Image scanning](#image-scanning) for the prerequisite):
 
 ```bash
-./target/release/generator 9 < puzzle.txt
+sukodu solve --image ./sudoku.png            # auto-detects 9x9 vs 16x16
+sukodu solve --image ./sudoku.png --size 9   # skip auto-detection
 ```
 
 ### Difficulty
@@ -68,7 +83,7 @@ The generator can also solve puzzles (same interface as the solver):
 
 ### Input Format
 
-`n * n` whitespace-separated numbers, with empty cells as `0`:
+`n * n` whitespace-separated numbers, with empty cells as `0` (for sizes above 9, values 10–16 are written as the numbers `10`–`16`):
 
 ```text
 0 6 0 0 5 0 0 0 0
@@ -82,11 +97,51 @@ The generator can also solve puzzles (same interface as the solver):
 0 8 0 0 4 0 0 0 0
 ```
 
+## Image scanning
+
+`sukodu solve --image` turns a picture of a puzzle into a board and solves it. The pipeline is:
+
+1. **Load & threshold** — load the image as grayscale and apply an adaptive threshold.
+2. **Locate the grid** — find the largest square contour and its four corners.
+3. **Perspective-correct** — warp the grid to a flat 576×576 square (handles camera angle).
+4. **Detect size** — auto-detect 9×9 vs 16×16 from grid-line spacing (override with `--size`).
+5. **Recognize digits** — crop each cell, clean it up, and read it with **Tesseract** in single-character mode, restricted to the valid Sudoku alphabet.
+6. **Solve** — feed the recognized board to the DLX solver.
+
+### Prerequisite: Tesseract
+
+Digit recognition uses Tesseract via the `leptess` crate, which links against the system Tesseract and Leptonica libraries. Install them once:
+
+```bash
+# macOS
+brew install tesseract leptonica
+
+# Debian / Ubuntu
+sudo apt-get install tesseract-ocr libtesseract-dev libleptonica-dev
+```
+
+If Tesseract is not installed, `solve --image` prints a clear error telling you to install it; all other commands work without it.
+
+> **Note:** the scanner targets clean, printed grids photographed roughly straight-on. It does not handle handwriting, and accuracy degrades on skewed or low-contrast photos. Always sanity-check the "RECOGNIZED BOARD" it prints before trusting the solution.
+
 ## How It Works
 
 Sudoku is reducible to the **exact cover problem**: every cell, row, column, and block constraint maps to a column in a binary matrix. **Algorithm X** with **Dancing Links** solves this efficiently by covering and uncovering columns (and their intersecting rows) through circular doubly-linked lists.
 
 Index-based references in flat `Vec<Cell>` structures avoid `unsafe` code while keeping the cache-friendly performance of the original C++ implementation.
+
+## Testing
+
+```bash
+cargo test                 # fast suite: solve/generate (9x9), parse_grid, CLI, image scan
+cargo test -- --ignored    # large boards (16x16 … 49x49) — slower
+```
+
+What the suite covers:
+
+- **`sudoku_tests.rs`** — generate → unique-solution → solve across sizes, plus `parse_grid` validation and `format_board` round-tripping.
+- **`cli_tests.rs`** — drives the compiled binary end-to-end for the file-based solve flow (valid puzzle, malformed input, missing flags) and the stdin path.
+- **`vision_tests.rs`** — renders synthetic puzzles, runs the full image pipeline, and solves the recognized board. These require Tesseract; if it is not installed they **skip** rather than fail, so the rest of the suite still runs.
 
 ## Performance Matrix
 
