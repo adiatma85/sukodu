@@ -9,8 +9,8 @@
 //! the suite still runs on a machine without Tesseract.
 
 use sukodu::vision::{
-    detect_grid_size, find_grid_corners, generate_synthetic_image, load_image, scan_board,
-    warp_grid,
+    detect_grid_size, draw_solution, find_grid_corners, generate_synthetic_image, load_image,
+    scan_board, warp_grid,
 };
 use sukodu::{format_board, has_unique_solution, make_lines_cols, solve_board};
 
@@ -268,5 +268,70 @@ fn test_real_world_9x9_if_present() {
             println!("Real-world recognized board:\n{}", format_board(&recognized, 9));
         }
         Err(e) => println!("Skipping real-world OCR (Tesseract unavailable): {}", e),
+    }
+}
+
+#[test]
+fn test_draw_solution_9x9() {
+    let path = "tests/images/sudoku_synthetic_9x9.png";
+    generate_synthetic_image(path, 9, &PUZZLE_9X9).unwrap();
+
+    let gray = load_image(path).unwrap();
+    let binary = imageproc::contrast::adaptive_threshold(&gray, 15, 10);
+    let corners = find_grid_corners(&binary).unwrap();
+    let warped = warp_grid(&gray, corners).unwrap();
+
+    match scan_board(&warped, 9) {
+        Ok(recognized) => {
+            let solved = solve_board(&recognized, 9).unwrap();
+            let solved_img = draw_solution(&warped, &recognized, &solved, 9).unwrap();
+            assert_eq!(solved_img.width(), 576);
+            assert_eq!(solved_img.height(), 576);
+            
+            // Save the output to verify visual appearance
+            let out_path = "tests/images/solved_synthetic_9x9.png";
+            solved_img.save(out_path).unwrap();
+            assert!(std::path::Path::new(out_path).exists());
+        }
+        Err(e) => {
+            eprintln!("Skipping draw_solution test (Tesseract unavailable): {}", e);
+        }
+    }
+}
+
+#[test]
+fn test_draw_solution_16x16() {
+    let size = 16;
+    let solution = solved_16x16();
+    let mut puzzle = solution.clone();
+    for i in 0..(size * size) {
+        if i % 17 == 0 {
+            puzzle[i] = 0;
+        }
+    }
+
+    let path = "tests/images/sudoku_synthetic_16x16.png";
+    generate_synthetic_image(path, size, &puzzle).unwrap();
+
+    let gray = load_image(path).unwrap();
+    let binary = imageproc::contrast::adaptive_threshold(&gray, 15, 10);
+    let corners = find_grid_corners(&binary).unwrap();
+    let warped = warp_grid(&gray, corners).unwrap();
+
+    match scan_board(&warped, size) {
+        Ok(recognized) => {
+            let solved = solve_board(&recognized, size).unwrap();
+            let solved_img = draw_solution(&warped, &recognized, &solved, size).unwrap();
+            assert_eq!(solved_img.width(), 576);
+            assert_eq!(solved_img.height(), 576);
+            
+            // Save the output to verify visual appearance
+            let out_path = "tests/images/solved_synthetic_16x16.png";
+            solved_img.save(out_path).unwrap();
+            assert!(std::path::Path::new(out_path).exists());
+        }
+        Err(e) => {
+            eprintln!("Skipping draw_solution 16x16 test (Tesseract unavailable): {}", e);
+        }
     }
 }

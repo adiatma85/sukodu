@@ -2,7 +2,7 @@ use std::path::Path;
 use std::process::Command;
 use std::fs;
 use std::io::Cursor;
-use image::{GrayImage, ImageFormat, Luma, imageops};
+use image::{GrayImage, ImageFormat, Luma, RgbImage, Rgb, imageops};
 use imageproc::contours::find_contours;
 use imageproc::contrast::adaptive_threshold;
 use imageproc::geometric_transformations::{warp, Interpolation, Projection};
@@ -405,6 +405,85 @@ pub fn scan_board(warped_gray: &GrayImage, size: usize) -> Result<Vec<usize>, Bo
     }
 
     Ok(board)
+}
+
+/// Renders the solved Sudoku digits onto the warped grid image.
+///
+/// Takes the warped grayscale image, the original scanned board (to identify empty cells),
+/// the solved board, and the grid size. Returns an RGB image with the solved cells filled
+/// in with a distinct color.
+pub fn draw_solution(
+    warped_gray: &GrayImage,
+    original_board: &[usize],
+    solved_board: &[usize],
+    size: usize,
+) -> Result<RgbImage, Box<dyn std::error::Error>> {
+    ensure_font()?;
+    
+    let font_data = fs::read("resources/font.ttf")?;
+    let font = FontRef::try_from_slice(&font_data)?;
+
+    let mut rgb_img = RgbImage::new(warped_gray.width(), warped_gray.height());
+    for (x, y, p) in warped_gray.enumerate_pixels() {
+        let val = p[0];
+        rgb_img.put_pixel(x, y, Rgb([val, val, val]));
+    }
+
+    let cell_size = 576 / size;
+    let scale = PxScale::from((cell_size as f32 * 0.65).round());
+
+    for row in 0..size {
+        for col in 0..size {
+            let idx = row * size + col;
+            // Only draw digits that were empty (0) in the original board
+            if original_board[idx] == 0 && solved_board[idx] != 0 {
+                let val = solved_board[idx];
+                let c = if val >= 1 && val <= 9 {
+                    (b'0' + val as u8) as char
+                } else if val >= 10 && val <= 16 {
+                    (b'A' + (val - 10) as u8) as char
+                } else {
+                    continue;
+                };
+
+                let glyph = font.glyph_id(c).with_scale(scale);
+                if let Some(outline) = font.outline_glyph(glyph) {
+                    let bounds = outline.px_bounds();
+                    let gw = bounds.width();
+                    let gh = bounds.height();
+
+                    // Center cell position in the warped grid (576x576)
+                    let cell_cx = col * cell_size + cell_size / 2;
+                    let cell_cy = row * cell_size + cell_size / 2;
+
+                    let pad_x = cell_cx as f32 - gw / 2.0;
+                    let pad_y = cell_cy as f32 - gh / 2.0;
+
+                    // Choose a nice vibrant accent color (e.g. blue: [0, 102, 204])
+                    let accent_color = [0, 102, 204];
+
+                    outline.draw(|x, y, v| {
+                        let px = (x as f32 + pad_x).round() as i32;
+                        let py = (y as f32 + pad_y).round() as i32;
+                        if px >= 0 && px < 576 && py >= 0 && py < 576 {
+                            let bg_pixel = rgb_img.get_pixel(px as u32, py as u32);
+                            let bg_r = bg_pixel[0] as f32;
+                            let bg_g = bg_pixel[1] as f32;
+                            let bg_b = bg_pixel[2] as f32;
+
+                            let r = (v * accent_color[0] as f32 + (1.0 - v) * bg_r).round() as u8;
+                            let g = (v * accent_color[1] as f32 + (1.0 - v) * bg_g).round() as u8;
+                            let b = (v * accent_color[2] as f32 + (1.0 - v) * bg_b).round() as u8;
+
+                            rgb_img.put_pixel(px as u32, py as u32, Rgb([r, g, b]));
+                        }
+                    });
+                }
+            }
+        }
+    }
+
+    Ok(rgb_img)
 }
 
 /// Programmatically generate a synthetic Sudoku grid image for testing.

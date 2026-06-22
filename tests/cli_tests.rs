@@ -170,3 +170,22 @@ fn generate_then_solve_via_stdin_still_works() {
         }
     }
 }
+
+#[test]
+fn solve_output_image_without_image_fails() {
+    let out = Command::new(bin())
+        .args([
+            "solve",
+            "--output-image", "output.png",
+        ])
+        .output()
+        .unwrap();
+
+    assert!(!out.status.success(), "--output-image without --image should fail");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("--output-image can only be used with --image"),
+        "stderr was: {}",
+        stderr
+    );
+}

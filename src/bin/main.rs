@@ -12,7 +12,8 @@ fn print_usage(program_name: &str) {
     eprintln!("Usage:");
     eprintln!("  {} generate [size] [difficulty]      - Generate a new puzzle (default: 9 medium)", program_name);
     eprintln!("  {} solve [size]                      - Solve a text puzzle from stdin (default size: 9)", program_name);
-    eprintln!("  {} solve --image <path> [--size n]   - Solve a puzzle from an image (PNG/JPG)", program_name);
+    eprintln!("  {} solve --image <path> [--size n] [--output-image <path>]", program_name);
+    eprintln!("                                       - Solve a puzzle from an image (PNG/JPG)");
     eprintln!("  {} solve --size <n> --input-file <in> --output-file <out>", program_name);
     eprintln!("                                       - Solve a text puzzle from a file into a file");
     eprintln!();
@@ -20,6 +21,7 @@ fn print_usage(program_name: &str) {
     eprintln!("  {} generate 9 easy", program_name);
     eprintln!("  {} solve < puzzle.txt", program_name);
     eprintln!("  {} solve --image ./sudoku.png", program_name);
+    eprintln!("  {} solve --image ./sudoku.png --output-image ./solved.png", program_name);
     eprintln!("  {} solve --size 9 --input-file puzzle.txt --output-file solution.txt", program_name);
 }
 
@@ -91,6 +93,7 @@ fn main() {
             //   <n>                   bare positional size (stdin mode, backward compatible)
             let solve_args = &args[2..];
             let mut image_path: Option<&str> = None;
+            let mut output_image_path: Option<&str> = None;
             let mut input_file: Option<&str> = None;
             let mut output_file: Option<&str> = None;
             let mut size_flag: Option<usize> = None;
@@ -101,6 +104,10 @@ fn main() {
                 match solve_args[i].as_str() {
                     "--image" => {
                         image_path = Some(flag_value(solve_args, i, "--image", program_name));
+                        i += 2;
+                    }
+                    "--output-image" => {
+                        output_image_path = Some(flag_value(solve_args, i, "--output-image", program_name));
                         i += 2;
                     }
                     "--input-file" => {
@@ -138,6 +145,11 @@ fn main() {
 
             if image_path.is_some() && (input_file.is_some() || output_file.is_some()) {
                 eprintln!("Error: --image cannot be combined with --input-file/--output-file.");
+                process::exit(1);
+            }
+
+            if output_image_path.is_some() && image_path.is_none() {
+                eprintln!("Error: --output-image can only be used with --image.");
                 process::exit(1);
             }
 
@@ -255,6 +267,22 @@ fn main() {
                     if let Some(solved) = solve_board(&recognized, size) {
                         println!("\n--- SOLVED BOARD ---");
                         print_flat_board(&solved, size);
+
+                        if let Some(out_img_path) = output_image_path {
+                            let out_path = Path::new(out_img_path);
+                            let out_ext = out_path.extension()
+                                .and_then(|s| s.to_str())
+                                .unwrap_or("")
+                                .to_lowercase();
+                            if out_ext != "png" && out_ext != "jpg" && out_ext != "jpeg" {
+                                return Err("Only PNG and JPG/JPEG formats are supported for output image.".into());
+                            }
+
+                            println!("Rendering solved puzzle to {} ...", out_img_path);
+                            let solved_img = vision::draw_solution(&warped, &recognized, &solved, size)?;
+                            solved_img.save(out_path)?;
+                            println!("Solved image saved successfully.");
+                        }
                     } else {
                         eprintln!("\nError: The scanned puzzle has no valid solution. Please check the recognized grid above.");
                     }
