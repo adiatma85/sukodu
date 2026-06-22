@@ -315,7 +315,7 @@ fn ocr_char_to_value(text: &str, size: usize) -> Option<usize> {
 /// against synthetic puzzles found this plain layout beats bounding-box normalisation and
 /// post-blur for single-character recognition.)
 fn prepare_cell_for_ocr(cell_bin: &GrayImage) -> GrayImage {
-    const OUT: u32 = 200;
+    const OUT: u32 = 100;
     let inner = cell_bin.width();
     let pad = inner / 2;
     let canvas_size = inner + pad * 2;
