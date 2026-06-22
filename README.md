@@ -73,6 +73,15 @@ sukodu solve --image ./sudoku.png            # auto-detects 9x9 vs 16x16
 sukodu solve --image ./sudoku.png --size 9   # skip auto-detection
 ```
 
+To save the solved puzzle as an image, displaying the solution overlayed on the grid, use the `--output-image` flag:
+
+```bash
+sukodu solve --image ./sudoku.png --output-image ./solved.png
+```
+
+This warps and threshold-corrects the puzzle grid, solves it, and draws the solved digits onto the empty cells using a distinct accent color. Only PNG, JPG, and JPEG formats are supported.
+
+
 ### Difficulty
 
 | Difficulty | Clues (% of cells) |
@@ -142,6 +151,25 @@ What the suite covers:
 - **`sudoku_tests.rs`** — generate → unique-solution → solve across sizes, plus `parse_grid` validation and `format_board` round-tripping.
 - **`cli_tests.rs`** — drives the compiled binary end-to-end for the file-based solve flow (valid puzzle, malformed input, missing flags) and the stdin path.
 - **`vision_tests.rs`** — renders synthetic puzzles, runs the full image pipeline, and solves the recognized board. These require Tesseract; if it is not installed they **skip** rather than fail, so the rest of the suite still runs.
+
+### Continuous Integration (CI)
+
+A GitHub Actions workflow is configured to automatically run on every push and pull request targeting the `main` branch. It performs the following checks:
+1. **Formatting**: Runs `cargo fmt --check` to ensure style consistency.
+2. **Linting**: Runs `cargo clippy --all-targets -- -D warnings` to catch code smells and idiomatic issues.
+3. **Testing**: Installs system prerequisites (`tesseract-ocr`, `libtesseract-dev`, `libleptonica-dev`) and runs `cargo test --all-targets` to verify correctness.
+
+### Git Hooks
+
+A shareable pre-commit hook is provided in the `.githooks/` directory to run formatting, Clippy, and tests locally before each commit.
+
+To enable the pre-commit hook:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+
 
 ## Performance Matrix
 

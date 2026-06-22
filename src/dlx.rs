@@ -80,8 +80,8 @@ impl ExactCover {
 
         // 3. Populate and build the heap
         let mut heap = Heap::new(num_cols);
-        for col_idx in 0..num_cols {
-            heap.append(col_idx, cols[col_idx].size);
+        for (col_idx, col) in cols.iter().enumerate().take(num_cols) {
+            heap.append(col_idx, col.size);
         }
         heap.heapify();
 
@@ -264,7 +264,13 @@ impl ExactCover {
         (count, completed)
     }
 
-    fn solve_count_limited(&mut self, count: &mut usize, limit: usize, steps: &mut usize, max_steps: usize) -> bool {
+    fn solve_count_limited(
+        &mut self,
+        count: &mut usize,
+        limit: usize,
+        steps: &mut usize,
+        max_steps: usize,
+    ) -> bool {
         *steps += 1;
         if *steps > max_steps {
             return false;

@@ -82,8 +82,7 @@ pub fn generate_board(size: usize, difficulty: &str) -> Vec<usize> {
     let lines_cols = make_lines_cols(size);
     let mut problem = ExactCover::new(num_cols, lines_cols.clone());
 
-    for j in 0..size {
-        let val = first_row[j];
+    for (j, &val) in first_row.iter().enumerate().take(size) {
         let line_idx = j * size + val - 1;
         problem.select(line_idx);
     }
@@ -109,7 +108,7 @@ pub fn generate_board(size: usize, difficulty: &str) -> Vec<usize> {
 
     // 2. Remove clues symmetrically while maintaining unique solution
     let mut puzzle = solved_board.clone();
-    
+
     // Group cell indices into rotationally symmetric pairs/groups
     let mut pairs = Vec::new();
     let mut visited = vec![false; total_cells];
@@ -122,7 +121,7 @@ pub fn generate_board(size: usize, difficulty: &str) -> Vec<usize> {
         let sym_r = size - 1 - r;
         let sym_c = size - 1 - c;
         let sym_idx = sym_r * size + sym_c;
-        
+
         if idx == sym_idx {
             pairs.push(vec![idx]);
         } else {
@@ -131,7 +130,7 @@ pub fn generate_board(size: usize, difficulty: &str) -> Vec<usize> {
         visited[idx] = true;
         visited[sym_idx] = true;
     }
-    
+
     shuffle(&mut pairs, &mut rng);
 
     // Step limit for uniqueness checks to avoid long hangs on large boards
@@ -210,9 +209,14 @@ pub fn solve_board(board: &[usize], size: usize) -> Option<Vec<usize>> {
     }
 }
 
-pub fn has_unique_solution_limited(board: &[usize], size: usize, lines_cols: &Vec<Vec<usize>>, max_steps: usize) -> bool {
+pub fn has_unique_solution_limited(
+    board: &[usize],
+    size: usize,
+    lines_cols: &[Vec<usize>],
+    max_steps: usize,
+) -> bool {
     let num_cols = size * size * 4;
-    let mut problem = ExactCover::new(num_cols, lines_cols.clone());
+    let mut problem = ExactCover::new(num_cols, lines_cols.to_owned());
     for (idx, &val) in board.iter().enumerate() {
         if val > 0 {
             let line_idx = idx * size + val - 1;
@@ -223,7 +227,7 @@ pub fn has_unique_solution_limited(board: &[usize], size: usize, lines_cols: &Ve
     completed && count == 1
 }
 
-pub fn has_unique_solution(board: &[usize], size: usize, lines_cols: &Vec<Vec<usize>>) -> bool {
+pub fn has_unique_solution(board: &[usize], size: usize, lines_cols: &[Vec<usize>]) -> bool {
     has_unique_solution_limited(board, size, lines_cols, 100_000)
 }
 
@@ -287,7 +291,10 @@ pub fn parse_grid(input: &str, size: usize) -> Result<Vec<usize>, String> {
 
     for token in input.split_whitespace() {
         let value: usize = token.parse().map_err(|_| {
-            format!("invalid token '{}': expected an integer in 0..={}", token, size)
+            format!(
+                "invalid token '{}': expected an integer in 0..={}",
+                token, size
+            )
         })?;
         if value > size {
             return Err(format!(
@@ -301,7 +308,10 @@ pub fn parse_grid(input: &str, size: usize) -> Result<Vec<usize>, String> {
     if board.len() != expected {
         return Err(format!(
             "expected exactly {} numbers for a {}x{} grid, found {}",
-            expected, size, size, board.len()
+            expected,
+            size,
+            size,
+            board.len()
         ));
     }
 

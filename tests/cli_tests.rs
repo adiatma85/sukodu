@@ -34,15 +34,9 @@ const PUZZLE_9X9: &str = "\
 ";
 
 const SOLUTION_9X9: [usize; 81] = [
-    5, 3, 4, 6, 7, 8, 9, 1, 2,
-    6, 7, 2, 1, 9, 5, 3, 4, 8,
-    1, 9, 8, 3, 4, 2, 5, 6, 7,
-    8, 5, 9, 7, 6, 1, 4, 2, 3,
-    4, 2, 6, 8, 5, 3, 7, 9, 1,
-    7, 1, 3, 9, 2, 4, 8, 5, 6,
-    9, 6, 1, 5, 3, 7, 2, 8, 4,
-    2, 8, 7, 4, 1, 9, 6, 3, 5,
-    3, 4, 5, 2, 8, 6, 1, 7, 9,
+    5, 3, 4, 6, 7, 8, 9, 1, 2, 6, 7, 2, 1, 9, 5, 3, 4, 8, 1, 9, 8, 3, 4, 2, 5, 6, 7, 8, 5, 9, 7, 6,
+    1, 4, 2, 3, 4, 2, 6, 8, 5, 3, 7, 9, 1, 7, 1, 3, 9, 2, 4, 8, 5, 6, 9, 6, 1, 5, 3, 7, 2, 8, 4, 2,
+    8, 7, 4, 1, 9, 6, 3, 5, 3, 4, 5, 2, 8, 6, 1, 7, 9,
 ];
 
 #[test]
@@ -54,9 +48,12 @@ fn solve_valid_file_writes_correct_solution() {
     let status = Command::new(bin())
         .args([
             "solve",
-            "--size", "9",
-            "--input-file", input.to_str().unwrap(),
-            "--output-file", output.to_str().unwrap(),
+            "--size",
+            "9",
+            "--input-file",
+            input.to_str().unwrap(),
+            "--output-file",
+            output.to_str().unwrap(),
         ])
         .status()
         .unwrap();
@@ -64,7 +61,11 @@ fn solve_valid_file_writes_correct_solution() {
 
     let written = fs::read_to_string(&output).unwrap();
     let solved = parse_grid(&written, 9).expect("output file should be a valid grid");
-    assert_eq!(solved, SOLUTION_9X9.to_vec(), "solution written to file is wrong");
+    assert_eq!(
+        solved,
+        SOLUTION_9X9.to_vec(),
+        "solution written to file is wrong"
+    );
 
     let _ = fs::remove_file(&input);
     let _ = fs::remove_file(&output);
@@ -79,17 +80,27 @@ fn solve_malformed_file_fails() {
     let out = Command::new(bin())
         .args([
             "solve",
-            "--size", "9",
-            "--input-file", input.to_str().unwrap(),
-            "--output-file", output.to_str().unwrap(),
+            "--size",
+            "9",
+            "--input-file",
+            input.to_str().unwrap(),
+            "--output-file",
+            output.to_str().unwrap(),
         ])
         .output()
         .unwrap();
 
     assert!(!out.status.success(), "malformed input should fail");
     let stderr = String::from_utf8_lossy(&out.stderr);
-    assert!(stderr.contains("invalid puzzle format"), "stderr was: {}", stderr);
-    assert!(!output.exists(), "no output file should be written on failure");
+    assert!(
+        stderr.contains("invalid puzzle format"),
+        "stderr was: {}",
+        stderr
+    );
+    assert!(
+        !output.exists(),
+        "no output file should be written on failure"
+    );
 
     let _ = fs::remove_file(&input);
 }
@@ -102,15 +113,21 @@ fn solve_missing_output_flag_fails() {
     let out = Command::new(bin())
         .args([
             "solve",
-            "--size", "9",
-            "--input-file", input.to_str().unwrap(),
+            "--size",
+            "9",
+            "--input-file",
+            input.to_str().unwrap(),
         ])
         .output()
         .unwrap();
 
     assert!(!out.status.success(), "missing --output-file should fail");
     let stderr = String::from_utf8_lossy(&out.stderr);
-    assert!(stderr.contains("--output-file is required"), "stderr was: {}", stderr);
+    assert!(
+        stderr.contains("--output-file is required"),
+        "stderr was: {}",
+        stderr
+    );
 
     let _ = fs::remove_file(&input);
 }
@@ -124,8 +141,10 @@ fn solve_missing_size_flag_fails() {
     let out = Command::new(bin())
         .args([
             "solve",
-            "--input-file", input.to_str().unwrap(),
-            "--output-file", output.to_str().unwrap(),
+            "--input-file",
+            input.to_str().unwrap(),
+            "--output-file",
+            output.to_str().unwrap(),
         ])
         .output()
         .unwrap();
@@ -163,10 +182,17 @@ fn generate_then_solve_via_stdin_still_works() {
     let solution = parse_grid(&String::from_utf8_lossy(&out.stdout), 9)
         .expect("stdin solve output should be a valid grid");
     // Solution must be complete and consistent with the original clues.
-    assert!(solution.iter().all(|&v| (1..=9).contains(&v)), "solution must be fully filled");
+    assert!(
+        solution.iter().all(|&v| (1..=9).contains(&v)),
+        "solution must be fully filled"
+    );
     for i in 0..81 {
         if parsed_puzzle[i] > 0 {
-            assert_eq!(solution[i], parsed_puzzle[i], "solution must respect clue at {}", i);
+            assert_eq!(
+                solution[i], parsed_puzzle[i],
+                "solution must respect clue at {}",
+                i
+            );
         }
     }
 }
@@ -174,14 +200,14 @@ fn generate_then_solve_via_stdin_still_works() {
 #[test]
 fn solve_output_image_without_image_fails() {
     let out = Command::new(bin())
-        .args([
-            "solve",
-            "--output-image", "output.png",
-        ])
+        .args(["solve", "--output-image", "output.png"])
         .output()
         .unwrap();
 
-    assert!(!out.status.success(), "--output-image without --image should fail");
+    assert!(
+        !out.status.success(),
+        "--output-image without --image should fail"
+    );
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(
         stderr.contains("--output-image can only be used with --image"),

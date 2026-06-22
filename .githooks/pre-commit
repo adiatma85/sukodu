@@ -1,0 +1,39 @@
+#!/bin/sh
+
+# pre-commit hook to run formatting, clippy lints, and tests before committing.
+
+echo "========================================="
+echo "Running pre-commit hooks..."
+echo "========================================="
+
+# 1. Check formatting
+echo "Running formatting check: cargo fmt --all -- --check"
+cargo fmt --all -- --check
+if [ $? -ne 0 ]; then
+    echo "❌ Error: Formatting checks failed."
+    echo "💡 Run 'cargo fmt' to format your code."
+    echo "========================================="
+    exit 1
+fi
+
+# 2. Check clippy lints
+echo "Running clippy lints: cargo clippy --all-targets -- -D warnings"
+cargo clippy --all-targets -- -D warnings
+if [ $? -ne 0 ]; then
+    echo "❌ Error: Clippy lints failed."
+    echo "========================================="
+    exit 1
+fi
+
+# 3. Run tests
+echo "Running tests: cargo test --all-targets"
+cargo test --all-targets
+if [ $? -ne 0 ]; then
+    echo "❌ Error: Unit tests failed."
+    echo "========================================="
+    exit 1
+fi
+
+echo "✅ All checks passed! Proceeding with commit."
+echo "========================================="
+exit 0

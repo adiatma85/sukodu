@@ -33,7 +33,11 @@ fn assert_valid_solution(board: &[usize], size: usize) {
     let b = (size as f64).sqrt() as usize;
     let full: u64 = (1..=size).map(|v| 1u64 << v).sum();
     let seen = |mask: u64, label: &str, idx: usize| {
-        assert_eq!(mask, full, "{} {} is not a complete 1..={} set", label, idx, size);
+        assert_eq!(
+            mask, full,
+            "{} {} is not a complete 1..={} set",
+            label, idx, size
+        );
     };
     for i in 0..size {
         let mut row = 0u64;
@@ -61,29 +65,17 @@ fn assert_valid_solution(board: &[usize], size: usize) {
 /// A fixed, fully-solved 9x9 board. Using a deterministic puzzle (rather than the
 /// time-seeded generator) keeps the OCR accuracy assertion reproducible run-to-run.
 const SOLVED_9X9: [usize; 81] = [
-    5, 3, 4, 6, 7, 8, 9, 1, 2,
-    6, 7, 2, 1, 9, 5, 3, 4, 8,
-    1, 9, 8, 3, 4, 2, 5, 6, 7,
-    8, 5, 9, 7, 6, 1, 4, 2, 3,
-    4, 2, 6, 8, 5, 3, 7, 9, 1,
-    7, 1, 3, 9, 2, 4, 8, 5, 6,
-    9, 6, 1, 5, 3, 7, 2, 8, 4,
-    2, 8, 7, 4, 1, 9, 6, 3, 5,
-    3, 4, 5, 2, 8, 6, 1, 7, 9,
+    5, 3, 4, 6, 7, 8, 9, 1, 2, 6, 7, 2, 1, 9, 5, 3, 4, 8, 1, 9, 8, 3, 4, 2, 5, 6, 7, 8, 5, 9, 7, 6,
+    1, 4, 2, 3, 4, 2, 6, 8, 5, 3, 7, 9, 1, 7, 1, 3, 9, 2, 4, 8, 5, 6, 9, 6, 1, 5, 3, 7, 2, 8, 4, 2,
+    8, 7, 4, 1, 9, 6, 3, 5, 3, 4, 5, 2, 8, 6, 1, 7, 9,
 ];
 
 /// The same board with about half the cells blanked out — a solvable puzzle whose clues we
 /// expect the scanner to recover.
 const PUZZLE_9X9: [usize; 81] = [
-    5, 3, 0, 0, 7, 0, 0, 0, 0,
-    6, 0, 0, 1, 9, 5, 0, 0, 0,
-    0, 9, 8, 0, 0, 0, 0, 6, 0,
-    8, 0, 0, 0, 6, 0, 0, 0, 3,
-    4, 0, 0, 8, 0, 3, 0, 0, 1,
-    7, 0, 0, 0, 2, 0, 0, 0, 6,
-    0, 6, 0, 0, 0, 0, 2, 8, 0,
-    0, 0, 0, 4, 1, 9, 0, 0, 5,
-    0, 0, 0, 0, 8, 0, 0, 7, 9,
+    5, 3, 0, 0, 7, 0, 0, 0, 0, 6, 0, 0, 1, 9, 5, 0, 0, 0, 0, 9, 8, 0, 0, 0, 0, 6, 0, 8, 0, 0, 0, 6,
+    0, 0, 0, 3, 4, 0, 0, 8, 0, 3, 0, 0, 1, 7, 0, 0, 0, 2, 0, 0, 0, 6, 0, 6, 0, 0, 0, 0, 2, 8, 0, 0,
+    0, 0, 4, 1, 9, 0, 0, 5, 0, 0, 0, 0, 8, 0, 0, 7, 9,
 ];
 
 /// Returns the recognized board, or `None` if Tesseract is unavailable (test should skip).
@@ -135,7 +127,10 @@ fn test_scan_9x9_accuracy() {
     let accuracy = matches as f32 / clues as f32;
     println!(
         "9x9 OCR — clues: {}, matches: {}, empty mismatches: {}, accuracy: {:.1}%",
-        clues, matches, empty_mismatches, accuracy * 100.0
+        clues,
+        matches,
+        empty_mismatches,
+        accuracy * 100.0
     );
     // The key safety property is zero false positives (no empty cell read as a digit); a
     // dropped clue is recoverable, a wrong clue is not. ~93% is the synthetic-font ceiling;
@@ -171,8 +166,7 @@ fn test_scan_and_solve_9x9_end_to_end() {
         }
     }
 
-    let solved = solve_board(&recognized, 9)
-        .expect("the recognized board should be solvable");
+    let solved = solve_board(&recognized, 9).expect("the recognized board should be solvable");
 
     // The solver's output must be the known unique solution.
     assert_eq!(
@@ -196,9 +190,9 @@ fn test_scan_and_solve_16x16_end_to_end() {
     // cells. This keeps the puzzle uniquely solvable and heavily over-constrained, so the few
     // clues OCR may drop can never change the solution.
     let mut puzzle = solution.clone();
-    for i in 0..(size * size) {
+    for (i, cell) in puzzle.iter_mut().enumerate().take(size * size) {
         if i % 17 == 0 {
-            puzzle[i] = 0;
+            *cell = 0;
         }
     }
     let lines_cols = make_lines_cols(size);
@@ -223,7 +217,10 @@ fn test_scan_and_solve_16x16_end_to_end() {
                 drops += 1;
             } else {
                 misreads += 1;
-                println!("  misread at cell {}: truth={} got={}", i, puzzle[i], recognized[i]);
+                println!(
+                    "  misread at cell {}: truth={} got={}",
+                    i, puzzle[i], recognized[i]
+                );
             }
         }
     }
@@ -236,7 +233,10 @@ fn test_scan_and_solve_16x16_end_to_end() {
     );
 
     // A misread or a false positive feeds the solver a wrong clue; a drop is recoverable.
-    assert_eq!(misreads, 0, "OCR misread a clue (wrong digit) — see output above");
+    assert_eq!(
+        misreads, 0,
+        "OCR misread a clue (wrong digit) — see output above"
+    );
     assert_eq!(false_positives, 0, "OCR read an empty cell as a digit");
 
     let solved = solve_board(&recognized, size).expect("the recognized board should be solvable");
@@ -261,11 +261,18 @@ fn test_real_world_9x9_if_present() {
     let binary = imageproc::contrast::adaptive_threshold(&gray, 15, 10);
     let corners = find_grid_corners(&binary).unwrap();
     let warped = warp_grid(&gray, corners).unwrap();
-    assert_eq!(detect_grid_size(&warped), 9, "real-world image should detect as 9x9");
+    assert_eq!(
+        detect_grid_size(&warped),
+        9,
+        "real-world image should detect as 9x9"
+    );
 
     match scan_board(&warped, 9) {
         Ok(recognized) => {
-            println!("Real-world recognized board:\n{}", format_board(&recognized, 9));
+            println!(
+                "Real-world recognized board:\n{}",
+                format_board(&recognized, 9)
+            );
         }
         Err(e) => println!("Skipping real-world OCR (Tesseract unavailable): {}", e),
     }
@@ -287,7 +294,7 @@ fn test_draw_solution_9x9() {
             let solved_img = draw_solution(&warped, &recognized, &solved, 9).unwrap();
             assert_eq!(solved_img.width(), 576);
             assert_eq!(solved_img.height(), 576);
-            
+
             // Save the output to verify visual appearance
             let out_path = "tests/images/solved_synthetic_9x9.png";
             solved_img.save(out_path).unwrap();
@@ -304,9 +311,9 @@ fn test_draw_solution_16x16() {
     let size = 16;
     let solution = solved_16x16();
     let mut puzzle = solution.clone();
-    for i in 0..(size * size) {
+    for (i, cell) in puzzle.iter_mut().enumerate().take(size * size) {
         if i % 17 == 0 {
-            puzzle[i] = 0;
+            *cell = 0;
         }
     }
 
@@ -324,14 +331,17 @@ fn test_draw_solution_16x16() {
             let solved_img = draw_solution(&warped, &recognized, &solved, size).unwrap();
             assert_eq!(solved_img.width(), 576);
             assert_eq!(solved_img.height(), 576);
-            
+
             // Save the output to verify visual appearance
             let out_path = "tests/images/solved_synthetic_16x16.png";
             solved_img.save(out_path).unwrap();
             assert!(std::path::Path::new(out_path).exists());
         }
         Err(e) => {
-            eprintln!("Skipping draw_solution 16x16 test (Tesseract unavailable): {}", e);
+            eprintln!(
+                "Skipping draw_solution 16x16 test (Tesseract unavailable): {}",
+                e
+            );
         }
     }
 }

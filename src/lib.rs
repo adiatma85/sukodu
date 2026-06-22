@@ -4,4 +4,3 @@ pub mod sudoku;
 pub mod vision;
 
 pub use sudoku::*;
-
