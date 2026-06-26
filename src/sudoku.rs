@@ -60,6 +60,18 @@ fn shuffle<T>(slice: &mut [T], rng: &mut SimpleRng) {
 
 /// Generates a new Sudoku puzzle of the specified size and difficulty, returning it as a flat vector.
 pub fn generate_board(size: usize, difficulty: &str) -> Vec<usize> {
+    let seed = match std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH) {
+        Ok(d) => d.as_nanos() as u64,
+        Err(_) => 42,
+    };
+    generate_board_seeded(size, difficulty, seed)
+}
+
+/// Like [`generate_board`], but with an explicit RNG seed. Used by the WASM
+/// bindings, where `SystemTime::now()` is unavailable — it traps with
+/// "unreachable" on `wasm32-unknown-unknown` — so the seed is supplied by the
+/// JS host instead.
+pub fn generate_board_seeded(size: usize, difficulty: &str, seed: u64) -> Vec<usize> {
     let total_cells = size * size;
     let target_clues = match difficulty {
         "easy" => (total_cells * 45) / 100,
@@ -68,10 +80,6 @@ pub fn generate_board(size: usize, difficulty: &str) -> Vec<usize> {
         _ => (total_cells * 35) / 100,
     };
 
-    let seed = match std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH) {
-        Ok(d) => d.as_nanos() as u64,
-        Err(_) => 42,
-    };
     let mut rng = SimpleRng::new(seed);
 
     // 1. Generate a solved board by randomizing the first row
