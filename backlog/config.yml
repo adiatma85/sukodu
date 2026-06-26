@@ -1,0 +1,16 @@
+# Backlog.md Configuration
+defaultAssignee: []
+defaultStatus: "To Do"
+statuses:
+  - "To Do"
+  - "In Progress"
+  - "Done"
+definition_of_done:
+  - "Code compiles without warnings"
+  - "Unit and integration tests pass"
+  - "Clippy and cargo fmt checks pass"
+  - "Documentation (README.md and/or inline comments) updated"
+dateFormat: "yyyy-mm-dd hh:mm"
+autoCommit: false
+bypassGitHooks: false
+defaultPort: 6420
